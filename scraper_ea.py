@@ -1,87 +1,121 @@
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from io import StringIO
-from playwright.sync_api import sync_playwright
+from urllib.parse import urljoin
 
 from config_ea import USERNAME, PASSWORD, SUPPLYPRO_URL
+
+BASE_URL = 'https://www.hyphensolutions.com/MH2Supply/'
+HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/120.0.0.0 Safari/537.36'
+    )
+}
+
+
+def _form_data(soup) -> tuple[dict, str]:
+    """Extrae datos e action de un <form>."""
+    form = soup.find('form')
+    data = {
+        inp.get('name'): inp.get('value', '')
+        for inp in form.find_all('input')
+        if inp.get('name')
+    }
+    action = urljoin(BASE_URL, form.get('action', 'Login.asp'))
+    return data, action
 
 
 def ejecutar_extraccion() -> pd.DataFrame:
     """
-    Accede a SupplyPro con credenciales E&A, aplica el filtro
-    'Show All Except EPOs' y retorna el DataFrame crudo de la tabla.
+    Extrae la tabla de órdenes de SupplyPro para E&A usando HTTP directo.
+    No requiere browser — compatible con Streamlit Cloud.
     """
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-setuid-sandbox',
-                '--no-zygote',
-                '--single-process',
-                '--disable-extensions',
-                '--disable-software-rasterizer',
-            ],
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    # ── 1. GET login page ──────────────────────────────────────────────────
+    resp = session.get(SUPPLYPRO_URL, timeout=30)
+    resp.raise_for_status()
+
+    # ── 2. POST credenciales ───────────────────────────────────────────────
+    data, action = _form_data(BeautifulSoup(resp.text, 'lxml'))
+    data['user_name'] = USERNAME
+    data['password']  = PASSWORD
+    resp = session.post(action, data=data, timeout=30)
+    resp.raise_for_status()
+
+    # ── 3. Sesión duplicada: releer form y reenviar con force_signon ───────
+    if 'force_signon' in resp.text:
+        data2, action2 = _form_data(BeautifulSoup(resp.text, 'lxml'))
+        data2['user_name']    = USERNAME
+        data2['password']     = PASSWORD
+        data2['force_signon'] = 'on'
+        resp = session.post(action2, data=data2, timeout=30)
+        resp.raise_for_status()
+
+    # ── 4. Buscar link "Newly Received Orders" ─────────────────────────────
+    soup = BeautifulSoup(resp.text, 'lxml')
+    link = soup.find('a', string=lambda s: s and 'Newly Received Orders' in s)
+    if not link:
+        raise RuntimeError(
+            "No se encontró 'Newly Received Orders'. "
+            "Posible error de login o cambio en la interfaz."
         )
-        page = browser.new_page()
-        try:
-            # Login
-            page.goto(SUPPLYPRO_URL, wait_until='networkidle', timeout=30_000)
-            page.fill('#user_name', USERNAME)
-            page.wait_for_timeout(100)
-            page.fill('#password', PASSWORD)
-            page.click("input[type='submit']")
-            page.wait_for_load_state('networkidle', timeout=30_000)
 
-            # Sesión duplicada: rellenar password, marcar Force Sign In y reenviar
-            force_checkbox = page.query_selector('input[name="force_signon"]')
-            if force_checkbox:
-                page.fill('#password', PASSWORD)
-                force_checkbox.check()
-                page.click("input[name='cmdSubmit']")
-                page.wait_for_load_state('networkidle', timeout=30_000)
+    resp = session.get(link['href'], timeout=30)
+    resp.raise_for_status()
 
-            # Verificar que el login fue exitoso
-            page_text = page.inner_text('body')
-            if 'Invalid' in page_text or 'incorrect' in page_text.lower():
-                raise RuntimeError("Credenciales incorrectas.")
+    # ── 5. Aplicar filtro "Show All Except EPOs" ───────────────────────────
+    soup = BeautifulSoup(resp.text, 'lxml')
+    select = soup.find('select', {'name': 'ref_epo_filter'})
+    if not select:
+        raise RuntimeError("No se encontró el filtro 'ref_epo_filter'.")
 
-            # Navegar a Newly Received Orders
-            # El link puede estar dentro de un submenú oculto — intentamos
-            # via JS para evitar el bloqueo de visibilidad del menú
-            clicked = page.evaluate("""
-                () => {
-                    const links = [...document.querySelectorAll('a')];
-                    const target = links.find(a => a.textContent.trim() === 'Newly Received Orders');
-                    if (target) { target.click(); return true; }
-                    return false;
-                }
-            """)
-            if not clicked:
-                raise RuntimeError("No se encontró el link 'Newly Received Orders' en la página.")
-            page.wait_for_selector('[name="ref_epo_filter"]', timeout=30_000)
+    filter_form = select.find_parent('form')
+    if not filter_form:
+        raise RuntimeError("No se encontró el formulario del filtro.")
 
-            # Filtro Show All Except EPOs
-            page.select_option('[name="ref_epo_filter"]', label='Show All Except EPOs')
-            page.wait_for_timeout(5_000)
+    # Recolectar todos los inputs del form
+    filter_data = {
+        inp.get('name'): inp.get('value', '')
+        for inp in filter_form.find_all('input')
+        if inp.get('name')
+    }
+    # Todos los selects con su valor actual, excepto ref_epo_filter
+    for sel_el in filter_form.find_all('select'):
+        name = sel_el.get('name')
+        if name and name != 'ref_epo_filter':
+            selected = sel_el.find('option', selected=True)
+            filter_data[name] = selected.get('value', '') if selected else ''
 
-            # Extraer tabla (buscar por cabecera "Builder")
-            th = page.locator('th:has-text("Builder")').first
-            table_html = th.locator('xpath=ancestor::table').first.evaluate(
-                'el => el.outerHTML'
-            )
+    # Valor "Show All Except EPOs" = 'N' (confirmado por inspección)
+    filter_data['ref_epo_filter'] = 'N'
 
-            df = pd.read_html(StringIO(table_html))[0]
+    filter_url = filter_form.get('action', link['href'])
+    resp = session.post(filter_url, data=filter_data, timeout=60)
+    resp.raise_for_status()
 
-            # Cerrar sesión
-            try:
-                page.click('text=Sign Out', timeout=5_000)
-                page.wait_for_timeout(2_000)
-            except Exception:
-                pass
+    # ── 6. Extraer tabla ───────────────────────────────────────────────────
+    soup = BeautifulSoup(resp.text, 'lxml')
+    th = next(
+        (t for t in soup.find_all('th') if 'Builder' in t.get_text()),
+        None,
+    )
+    if not th:
+        raise RuntimeError("No se encontró la tabla de órdenes en la respuesta.")
 
-            return df
+    table_html = str(th.find_parent('table'))
+    df = pd.read_html(StringIO(table_html))[0]
 
-        finally:
-            browser.close()
+    # ── 7. Cerrar sesión ───────────────────────────────────────────────────
+    try:
+        sign_out = soup.find('a', string=lambda s: s and 'Sign Out' in s)
+        if sign_out:
+            session.get(sign_out['href'], timeout=10)
+    except Exception:
+        pass
+
+    return df
