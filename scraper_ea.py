@@ -18,6 +18,10 @@ def ejecutar_extraccion() -> pd.DataFrame:
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--disable-setuid-sandbox',
+                '--no-zygote',
+                '--single-process',
+                '--disable-extensions',
+                '--disable-software-rasterizer',
             ],
         )
         page = browser.new_page()
