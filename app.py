@@ -1,9 +1,21 @@
+import subprocess
+import sys
 import streamlit as st
 import pandas as pd
 from io import BytesIO
 
 from scraper_ea import ejecutar_extraccion
 from transformer_ea import transformar_ordenes
+
+
+@st.cache_resource
+def instalar_chromium():
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        check=True,
+    )
+
+instalar_chromium()
 
 # ──────────────────────────────────────────────
 # Configuración de página
