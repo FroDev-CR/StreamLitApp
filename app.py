@@ -23,8 +23,7 @@ if 'df_result' not in st.session_state:
 # ──────────────────────────────────────────────
 st.title("📦 E&A SupplyPro Extractor")
 st.markdown("### Extracción automática de órdenes")
-st.markdown("---"){MongoDataBaseNotsupported}
-{StreamlitNotsupported} {RepositoryNotsupported}
+st.markdown("---")
 
 # ──────────────────────────────────────────────
 # Botón principal
