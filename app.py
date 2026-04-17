@@ -55,8 +55,7 @@ if st.session_state.df_result is not None:
     st.markdown("---")
     st.markdown("### Resultados")
     st.dataframe(df, use_container_width=True, height=400)
-    {MongoDataBaseNotsupported}
-{StreamlitNotsupported} {RepositoryNotsupported}
+    
 
     # Métricas rápidas
     col1, col2 = st.columns(2)
