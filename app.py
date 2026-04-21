@@ -24,7 +24,7 @@ MOBILE_CSS = """
 """
 
 # ── Page config ────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="E&A SupplyPro Extractor", page_icon="📦", layout="wide")
+st.set_page_config(page_title="WorkSync — E&A", page_icon="📦", layout="wide")
 st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
 # ── Session state ──────────────────────────────────────────────────────────────

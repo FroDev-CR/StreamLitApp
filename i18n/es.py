@@ -1,5 +1,5 @@
 STRINGS = {
-    "app_title":                    "📦 E&A SupplyPro Extractor",
+    "app_title":                    "📦 WorkSync — E&A",
     "app_subtitle":                 "Extracción automática de órdenes",
     "btn_export":                   "🚀 Exportar órdenes de SupplyPro",
     "spinner_extracting":           "Extrayendo órdenes...",
