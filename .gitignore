@@ -3,3 +3,4 @@ __pycache__/
 .env
 ordenes_extraidas.csv
 EAndA/
+.streamlit/secrets.toml
