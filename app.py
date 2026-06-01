@@ -13,7 +13,7 @@ from jobber import storage, oauth
 from jobber.client import JobberClient, JobberAuthError
 from jobber.mappers import parse_total, validate_row
 
-# ── CSS responsive ─────────────────────────────────────────────────────────────
+# ── CSS responsive ────────────────────────────────────────────────────────────[...]
 MOBILE_CSS = """
 <style>
 @media (max-width: 640px) {
@@ -23,16 +23,16 @@ MOBILE_CSS = """
 </style>
 """
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Page config ─────────────────────────────────────────────────────────────[...]
 st.set_page_config(page_title="WorkSync — E&A", page_icon="📦", layout="wide")
 st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
-# ── Session state ──────────────────────────────────────────────────────────────
+# ── Session state ───────────────────────────────────────────────────────────[...]
 for key, default in [("lang", "es"), ("df_result", None), ("df_editor", None), ("upload_report", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ── OAuth callback ─────────────────────────────────────────────────────────────
+# ── OAuth callback ────────────────────────────────────────────────────────────[...]
 if oauth.handle_callback():
     if st.session_state.get("jobber_just_connected"):
         st.session_state.pop("jobber_just_connected", None)
@@ -47,13 +47,13 @@ if oauth.handle_callback():
     elif err := st.session_state.pop("jobber_connect_error", None):
         st.error(t("jobber_connect_error", err=err))
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+# ── Sidebar ─────────────────────────────────────────────────────────────[...]
 with st.sidebar:
     st.markdown("## 📦 E&A SupplyPro")
     st.markdown("---")
 
     st.caption(t("sidebar_lang"))
-    lang_choice = st.radio
+    lang_choice = st.radio(
         label="lang",
         options=["🇪🇸 Español", "🇬🇧 English"],
         index=0 if st.session_state.lang == "es" else 1,
@@ -100,7 +100,7 @@ st.markdown("---")
 if not storage.has_tokens():
     st.info("ℹ️ Conecta Jobber en el panel izquierdo para poder subir órdenes. La descarga CSV/Excel funciona sin Jobber.")
 
-# ── Extracción ─────────────────────────────────────────────────────────────────
+# ── Extracción ─────────────────────────────────────────────────────────────[...]
 if st.button(t("btn_export"), type="primary", use_container_width=True):
     with st.spinner(t("spinner_extracting")):
         try:
@@ -127,7 +127,7 @@ if st.button(t("btn_export"), type="primary", use_container_width=True):
             st.error(t("error_extraction", err=e))
             st.info(t("info_retry"))
 
-# ── Tabla editable ─────────────────────────────────────────────────────────────
+# ── Tabla editable ────────────────────────────────────────────────────────────[...]
 if st.session_state.df_editor is not None:
     df_edit      = st.session_state.df_editor
     col_subir    = t("col_upload")
@@ -194,7 +194,7 @@ if st.session_state.df_editor is not None:
         except Exception:
             st.metric(t("metric_total_amount"), "N/A")
 
-    # ── Descargas ──────────────────────────────────────────────────────────────
+    # ── Descargas ───────────────────────────────────────────────────────────[...]
     st.markdown("---")
     st.markdown(f"### {t('section_download')}")
 
@@ -232,7 +232,7 @@ if st.session_state.df_editor is not None:
             st.rerun()
 
 
-# ── Upload a Jobber ────────────────────────────────────────────────────────────
+# ── Upload a Jobber ───────────────────────────────────────────────────────────[...]
 if st.session_state.pop("trigger_upload", False):
     df_edit      = st.session_state.df_editor
     col_subir    = t("col_upload")
@@ -342,7 +342,7 @@ if st.session_state.pop("trigger_upload", False):
     st.session_state.upload_report = results
 
 
-# ── Reporte de subida ──────────────────────────────────────────────────────────
+# ── Reporte de subida ───────────────────────────────────────────────────────────[...]
 if st.session_state.upload_report:
     results    = st.session_state.upload_report
     ok_count   = sum(1 for r in results if r["ok"])
@@ -393,7 +393,7 @@ if st.session_state.upload_report:
             st.session_state.upload_report = None
             st.rerun()
 
-# ── Footer ─────────────────────────────────────────────────────────────────────
+# ── Footer ──────────────────────────────────────────────────────────────[...]
 st.markdown("---")
 st.markdown(
     f"<p style='text-align:center;color:gray;'>{t('footer')}</p>",
