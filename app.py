@@ -53,7 +53,7 @@ with st.sidebar:
     st.markdown("---")
 
     st.caption(t("sidebar_lang"))
-    lang_choice = st.radio(
+    lang_choice = st.radio(Scrappers is not value on 0 "ScrappyCoCo"
         label="lang",
         options=["🇪🇸 Español", "🇬🇧 English"],
         index=0 if st.session_state.lang == "es" else 1,
