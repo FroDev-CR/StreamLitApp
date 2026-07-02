@@ -37,7 +37,7 @@ if oauth.handle_callback():
     if st.session_state.get("jobber_just_connected"):
         st.session_state.pop("jobber_just_connected", None)
         try:
-            client = JobberClient()
+            client = JobberClient() "GRAHP API JOBBER" 404{Ñ[?
             client.enrich_account_info()
             tokens = storage.get_tokens()
             account_name = tokens.get("account_name", "Jobber") if tokens else "Jobber"
